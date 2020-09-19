@@ -16,10 +16,14 @@ import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StreamTokenizer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.StringTokenizer;
 import java.util.zip.GZIPInputStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -97,14 +101,14 @@ public class ExecTest {
       file = file.substring(0, file.length() - ".gz".length()); // for errors
     }
     int lineno = 0;
-    UNIXBufferedReader r = new UNIXBufferedReader(new InputStreamReader(in, "UTF-8"));
+    StreamTokenizer r = testDataTokenizer(new InputStreamReader(in, StandardCharsets.UTF_8));
     ArrayList<String> strings = new ArrayList<String>();
     int input = 0; // next index within strings to read
     boolean inStrings = false;
     RE2 re = null, refull = null;
     int nfail = 0, ncase = 0;
-    String line;
-    while ((line = r.readLine()) != null) {
+    while (r.nextToken() != StreamTokenizer.TT_EOF) {
+      String line = r.sval;
       lineno++;
       if (line.isEmpty()) {
         fail(String.format("%s:%d: unexpected blank line", file, lineno));
@@ -354,12 +358,12 @@ public class ExecTest {
   private void testFowler(String file) throws IOException {
     InputStream in = ExecTest.class.getResourceAsStream("/" + file);
     // TODO(adonovan): call in.close() on all paths.
-    UNIXBufferedReader r = new UNIXBufferedReader(new InputStreamReader(in, "UTF-8"));
+    StreamTokenizer r = testDataTokenizer(new InputStreamReader(in, StandardCharsets.UTF_8));
     int lineno = 0;
     int nerr = 0;
-    String line;
     String lastRegexp = "";
-    while ((line = r.readLine()) != null) {
+    while (r.nextToken() != StreamTokenizer.TT_EOF) {
+      String line = r.sval;
       lineno++;
       // if (line.isEmpty()) {
       //   fail(String.format("%s:%d: unexpected blank line", file, lineno));
@@ -689,5 +693,13 @@ public class ExecTest {
       throw new RuntimeException("parse error: odd number of fields");
     }
     return result;
+  }
+
+  private static StreamTokenizer testDataTokenizer(Reader r) {
+    StreamTokenizer t = new StreamTokenizer(r);
+    t.resetSyntax();
+    t.wordChars(Character.MIN_CODE_POINT, Character.MAX_CODE_POINT);
+    t.whitespaceChars('\n', '\n');
+    return t;
   }
 }
