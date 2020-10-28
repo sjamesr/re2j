@@ -13,6 +13,9 @@ addons:
     - test-host
   hostname: test-host
 
+script:
+  - ./gradlew check -i
+
 after_success:
   - ./gradlew cobertura coveralls
 
