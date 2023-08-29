@@ -27,11 +27,14 @@ final class Inst {
   public static final int RUNE1 = 9;
   public static final int RUNE_ANY = 10;
   public static final int RUNE_ANY_NOT_NL = 11;
+  public static final int SCRIPT = 12;
+  public static final int NOT_SCRIPT = 13;
 
   int op;
   int out; // all but MATCH, FAIL
   int arg; // ALT, ALT_MATCH, CAPTURE, EMPTY_WIDTH
   int[] runes; // length==1 => exact match
+  Character.UnicodeScript script; // SCRIPT
   // otherwise a list of [lo,hi] pairs.  hi is *inclusive*.
   // REVIEWERS: why not half-open intervals?
 
@@ -120,6 +123,8 @@ final class Inst {
         return "any -> " + out;
       case RUNE_ANY_NOT_NL:
         return "anynotnl -> " + out;
+      case SCRIPT:
+        return "script " + script;
       default:
         throw new IllegalStateException("unhandled case in Inst.toString");
     }

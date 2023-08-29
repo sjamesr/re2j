@@ -115,6 +115,7 @@ public class SimplifyTest {
     {"(?i)[a]", "(?i:A)"},
     {"(?i)K", "(?i:K)"},
     {"(?i)k", "(?i:K)"},
+    {"[Aa][Bb][Cc]", "(?i:ABC)"},
     {"(?i)\\x{212a}", "(?i:K)"},
     {"(?i)[K]", "[Kk\u212A]"},
     {"(?i)[k]", "[Kk\u212A]"},

@@ -9,6 +9,7 @@
 
 package com.google.re2j;
 
+import java.lang.Character.UnicodeScript;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -40,10 +41,11 @@ class Regexp {
     REPEAT, // Matches subs[0] [min, max] times; max=-1 => no limit.
     CONCAT, // Matches concatenation of subs[]
     ALTERNATE, // Matches union of subs[]
-
+    SCRIPT,
+    NOT_SCRIPT,
     // Pseudo ops, used internally by Parser for parsing stack:
     LEFT_PAREN,
-    VERTICAL_BAR;
+    VERTICAL_BAR,;
 
     boolean isPseudo() {
       return ordinal() >= LEFT_PAREN.ordinal();
@@ -57,6 +59,7 @@ class Regexp {
   Regexp[] subs; // subexpressions, if any.  Never null.
   // subs[0] is used as the freelist.
   int[] runes; // matched runes, for LITERAL, CHAR_CLASS
+  Character.UnicodeScript script; // matched script for SCRIPT
   int min, max; // min, max for REPEAT
   int cap; // capturing index, for CAPTURE
   String name; // capturing name, for CAPTURE
@@ -261,6 +264,12 @@ class Regexp {
           }
         }
         out.append(']');
+        break;
+      case SCRIPT:
+        out.append("\\p{").append(script).append("}");
+        break;
+      case NOT_SCRIPT:
+        out.append("\\P{").append(script).append("}");
         break;
       default: // incl. pseudos
         out.append(op);

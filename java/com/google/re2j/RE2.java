@@ -940,7 +940,7 @@ class RE2 {
    */
   // This is visible for testing.
   List<int[]> findAllSubmatchIndex(String s, int n) {
-    final List<int[]> result = new ArrayList<int[]>();
+    final List<int[]> result = new ArrayList<>();
     allMatches(
         MachineInput.fromUTF16(s),
         n,

@@ -13,6 +13,7 @@
 
 package com.google.re2j;
 
+import java.lang.Character.UnicodeScript;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -944,6 +945,13 @@ class Parser {
 
             // Look for Unicode character group like \p{Han}
             if (t.lookingAt("\\p") || t.lookingAt("\\P")) {
+              UnicodeScriptMatch match = parseUnicodeScript(t);
+              if (match != null) {
+                re.op = match.negativeMatch ? Regexp.Op.NOT_SCRIPT : Regexp.Op.SCRIPT;
+                re.script = match.script;
+                push(re);
+                break bigswitch;
+              }
               CharClass cc = new CharClass();
               if (parseUnicodeClass(t, cc)) {
                 re.runes = cc.toArray();
@@ -1530,13 +1538,61 @@ class Parser {
     if (table != null) {
       return Pair.of(table, UnicodeTables.FOLD_CATEGORIES.get(name));
     }
-    table = UnicodeTables.SCRIPTS.get(name);
-    if (table != null) {
-      return Pair.of(table, UnicodeTables.FOLD_SCRIPT.get(name));
-    }
     return null;
   }
 
+  private UnicodeScriptMatch parseUnicodeScript(StringIterator t) throws PatternSyntaxException {
+    int startPos = t.pos();
+    if ((flags & RE2.UNICODE_GROUPS) == 0 || (!t.lookingAt("\\p") && !t.lookingAt("\\P"))) {
+      return null;
+    }
+
+    t.skip(1); // '\p'
+    boolean negativeMatch = t.pop() == 'P';
+
+    if (!t.more()) {
+      t.rewindTo(startPos);
+      throw new PatternSyntaxException(ERR_INVALID_CHAR_RANGE, t.rest());
+    }
+
+    if (t.pop() != '{') {
+      // not a script name
+      t.rewindTo(startPos);
+      return null;
+    }
+
+    String rest = t.rest();
+    int end = rest.indexOf('}');
+    if (end < 0) {
+      t.rewindTo(startPos);
+      throw new PatternSyntaxException(ERR_INVALID_CHAR_RANGE, t.rest());
+    }
+
+    String name = rest.substring(0, end);
+
+    // Group can have leading negation too.
+    //  \p{^Han} == \P{Han}, \P{^Han} == \p{Han}.
+    if (!name.isEmpty() && name.charAt(0) == '^') {
+      negativeMatch = !negativeMatch;
+      name = name.substring(1);
+      t.pop();
+    }
+
+    t.skipString(name);
+    t.skip(1); // '}'
+
+    try {
+      UnicodeScriptMatch match = new UnicodeScriptMatch();
+      match.script = UnicodeScript.forName(name);
+      match.negativeMatch = negativeMatch;
+      return match;
+    } catch (IllegalArgumentException e) {
+      // Not a script name, maybe it's something else. Let the next parse* method handle it.
+      t.rewindTo(startPos);
+    }
+
+    return null;
+  }
   // parseUnicodeClass() parses a leading Unicode character class like \p{Han}
   // from the beginning of t.  If one is present, it appends the characters to
   // to |cc|, advances |t| and returns true.
@@ -1615,9 +1671,8 @@ class Parser {
   private void parseClass(StringIterator t) throws PatternSyntaxException {
     int startPos = t.pos();
     t.skip(1); // '['
-    Regexp re = newRegexp(Regexp.Op.CHAR_CLASS);
-    re.flags = flags;
     CharClass cc = new CharClass();
+    boolean needAlt = false;
 
     int sign = +1;
     if (t.more() && t.lookingAt('^')) {
@@ -1652,6 +1707,16 @@ class Parser {
           continue;
         }
         t.rewindTo(beforePos);
+      }
+
+      UnicodeScriptMatch match = parseUnicodeScript(t);
+      if (match != null) {
+        Regexp re = newRegexp(match.negativeMatch ? Regexp.Op.NOT_SCRIPT : Regexp.Op.SCRIPT);
+        re.script = match.script;
+        re.flags = flags;
+        push(re);
+        needAlt = true;
+        continue;
       }
 
       // Look for Unicode character group like \p{Han}.
@@ -1692,8 +1757,17 @@ class Parser {
     if (sign < 0) {
       cc.negateClass();
     }
-    re.runes = cc.toArray();
-    push(re);
+
+    if (!cc.isEmpty()) {
+      Regexp re = newRegexp(Regexp.Op.CHAR_CLASS);
+      re.flags = flags;
+      re.runes = cc.toArray();
+      push(re);
+    }
+
+    if (needAlt) {
+      alternate();
+    }
   }
 
   //// Utilities
@@ -1726,5 +1800,10 @@ class Parser {
     System.arraycopy(x, 0, z, 0, x.length);
     System.arraycopy(y, 0, z, x.length, y.length);
     return z;
+  }
+
+  private static class UnicodeScriptMatch {
+    Character.UnicodeScript script;
+    boolean negativeMatch;
   }
 }

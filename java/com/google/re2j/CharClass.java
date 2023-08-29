@@ -354,6 +354,10 @@ class CharClass {
     return b.toString();
   }
 
+  public boolean isEmpty() {
+    return r.length == 0;
+  }
+
   @Override
   public String toString() {
     return charClassToString(r, len);

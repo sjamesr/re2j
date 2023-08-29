@@ -9,6 +9,7 @@
 
 package com.google.re2j;
 
+import java.lang.Character.UnicodeScript;
 import java.util.Arrays;
 
 // A Machine matches an input string of Unicode characters against an
@@ -353,6 +354,14 @@ class Machine {
           add = c == i.runes[0];
           break;
 
+        case Inst.SCRIPT:
+          add = Character.isValidCodePoint(c) && i.script.equals(UnicodeScript.of(c));
+          break;
+
+        case Inst.NOT_SCRIPT:
+          add = !Character.isValidCodePoint(c) || !i.script.equals(UnicodeScript.of(c));
+          break;
+
         case Inst.RUNE_ANY:
           add = true;
           break;
@@ -428,6 +437,8 @@ class Machine {
       case Inst.RUNE1:
       case Inst.RUNE_ANY:
       case Inst.RUNE_ANY_NOT_NL:
+      case Inst.SCRIPT:
+      case Inst.NOT_SCRIPT:
         if (t == null) {
           t = alloc(inst);
         } else {

@@ -9,6 +9,8 @@
 
 package com.google.re2j;
 
+import java.lang.Character.UnicodeScript;
+
 /**
  * Compiler from {@code Regexp} (RE2 abstract syntax) to {@code RE2} (compiled regular expression).
  *
@@ -204,6 +206,26 @@ class Compiler {
     return f;
   }
 
+  private Frag script(Character.UnicodeScript script, int flags) {
+    Frag f = newInst(Inst.SCRIPT);
+    f.nullable = false;
+    Inst i = prog.getInst(f.i);
+    i.script = script;
+    i.arg = flags;
+    f.out = f.i << 1;
+    return f;
+  }
+
+  private Frag notScript(Character.UnicodeScript script, int flags) {
+    Frag f = newInst(Inst.NOT_SCRIPT);
+    f.nullable = false;
+    Inst i = prog.getInst(f.i);
+    i.script = script;
+    i.arg = flags;
+    f.out = f.i << 1;
+    return f;
+  }
+
   private static final int[] ANY_RUNE_NOT_NL = {0, '\n' - 1, '\n' + 1, Unicode.MAX_RUNE};
   private static final int[] ANY_RUNE = {0, Unicode.MAX_RUNE};
 
@@ -224,6 +246,10 @@ class Compiler {
           }
           return f;
         }
+      case SCRIPT:
+        return script(re.script, re.flags);
+      case NOT_SCRIPT:
+        return notScript(re.script, re.flags);
       case CHAR_CLASS:
         return rune(re.runes, re.flags);
       case ANY_CHAR_NOT_NL:
